@@ -1,0 +1,12 @@
+.env
+.env.local
+.idea/
+.metadata/
+.vscode/
+bin/
+target/
+*.class
+*.jar
+*.log
+*.tmp
+*.swp

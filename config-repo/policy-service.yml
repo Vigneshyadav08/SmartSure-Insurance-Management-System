@@ -1,0 +1,47 @@
+# WHY: Centralized configuration using Spring Cloud Config allows us to manage
+# environmental settings (DB URLs, credentials) across all microservices from a single repository.
+# 
+# WHAT: This file contains the datasource, JPA, RabbitMQ, and observability settings
+# specific to the policy-service.
+# 
+# HOW: The policy-service fetches this file at startup from the Config Server.
+# Placeholders like ${EUREKA_SERVER_URL} allow for dynamic overrides in Docker/K8s.
+
+spring:
+  datasource:
+    # Interaction: Connects to a dedicated MySQL schema 'smartsure_policy'.
+    # Example: If running in Docker, the URL will resolve to the 'mysqldb' container.
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/smartsure_policy?createDatabaseIfNotExist=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:Vignesh@2808}
+  jpa:
+    hibernate:
+      # Use 'update' to reflect entity changes (like deductibleAmount) in the DB schema without data loss.
+      ddl-auto: update
+  rabbitmq:
+    # Interaction: Enables asynchronous event publishing (e.g., policy notifications).
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      # Interaction: Registers the service with Eureka for discovery by other services (like Admin or Claim).
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+management:
+  tracing:
+    sampling:
+      # Interaction: Samples 100% of requests for detailed Zipkin tracing.
+      probability: 1.0
+  zipkin:
+    tracing:
+      # Interaction: Sends tracing spans to the Zipkin visualizer.
+      endpoint: ${ZIPKIN_SERVER_URL:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        # Exposes Actuator endpoints (/health, /metrics) for monitoring system status.
+        include: "*"

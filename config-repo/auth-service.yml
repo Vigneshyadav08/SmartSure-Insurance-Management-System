@@ -1,0 +1,34 @@
+# WHY: The Auth Service is the gatekeeper of the system, managing JWT and user identities.
+# 
+# WHAT: Datasource for user credentials and Eureka registration.
+# 
+# HOW: Authenticates users and generates tokens used by the API Gateway to route requests.
+
+spring:
+  datasource:
+    # Interaction: Dedicated security database 'smartsure_auth'.
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/smartsure_auth?createDatabaseIfNotExist=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:Vignesh@2808}
+  jpa:
+    hibernate:
+      ddl-auto: update
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_SERVER_URL:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      # Interaction: Gateway finds the Auth service via this registration.
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}

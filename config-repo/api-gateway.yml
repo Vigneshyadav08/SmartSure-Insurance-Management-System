@@ -1,0 +1,145 @@
+# WHY: The API Gateway is the entry point for all client requests. It provides 
+# a unified interface, security (JWT verification), and routing.
+# 
+# WHAT: Configures Gateway routes, Authentication filters, and Resilience4j 
+# time limiters for all backend microservices.
+# 
+# HOW: It uses Spring Cloud Gateway to proxy requests. Each route (e.g., /auth/**)
+# is mapped to a service name in Eureka (lb://service-name).
+
+server:
+  port: 8080
+spring:
+  cloud:
+    gateway:
+      default-filters:
+        - AuthenticationFilter
+        - RateLimitFilter
+      discovery:
+        locator:
+          enabled: true
+      httpclient:
+        # WHY: Hardened timeouts prevent one slow service from consuming all 
+        # Gateway threads, ensuring system-wide stability.
+        connect-timeout: 5000
+        response-timeout: 60s
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth,/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authServiceCB
+                fallbackUri: forward:/fallback/auth
+        - id: policy-service
+          uri: lb://policy-service
+          predicates:
+            - Path=/policies,/policies/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: policyServiceCB
+                fallbackUri: forward:/fallback/policy
+        - id: claim-service
+          uri: lb://claim-service
+          predicates:
+            - Path=/claims,/claims/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: claimServiceCB
+                fallbackUri: forward:/fallback/claim
+        - id: admin-service
+          uri: lb://admin-service
+          predicates:
+            - Path=/admin,/admin/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: adminServiceCB
+                fallbackUri: forward:/fallback/admin
+
+        # WHY: These routes allow the Gateway to serve UI-friendly Swagger docs
+        # for each microservice under a single domain/port.
+        # id: auth-service-openapi ...
+        - id: auth-service-openapi
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth-service/v3/api-docs,/auth-service/v3/api-docs/**
+          filters:
+            - RewritePath=/auth-service/(?<segment>.*), /$\{segment}
+        - id: policy-service-openapi
+          uri: lb://policy-service
+          predicates:
+            - Path=/policy-service/v3/api-docs,/policy-service/v3/api-docs/**
+          filters:
+            - RewritePath=/policy-service/(?<segment>.*), /$\{segment}
+        - id: claim-service-openapi
+          uri: lb://claim-service
+          predicates:
+            - Path=/claim-service/v3/api-docs,/claim-service/v3/api-docs/**
+          filters:
+            - RewritePath=/claim-service/(?<segment>.*), /$\{segment}
+        - id: admin-service-openapi
+          uri: lb://admin-service
+          predicates:
+            - Path=/admin-service/v3/api-docs,/admin-service/v3/api-docs/**
+          filters:
+            - RewritePath=/admin-service/(?<segment>.*), /$\{segment}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      # Interaction: Uses Eureka to locate backend services dynamically.
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+springdoc:
+  swagger-ui:
+    disable-swagger-default-url: true
+    # Interaction: Groups all microservice docs for the API Gateway UI.
+    urls:
+      - name: Auth Service
+        url: /auth-service/v3/api-docs
+      - name: Policy Service
+        url: /policy-service/v3/api-docs
+      - name: Claim Service
+        url: /claim-service/v3/api-docs
+      - name: Admin Service
+        url: /admin-service/v3/api-docs
+
+# WHY: Global resilience configuration for the Gateway entry point.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # WHAT: Slightly larger window (20) and longer wait (10s) at the Gateway
+        # compared to individual services to prevent rapid flailing.
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+    instances:
+      authServiceCB:
+        baseConfig: default
+      policyServiceCB:
+        baseConfig: default
+      claimServiceCB:
+        baseConfig: default
+      adminServiceCB:
+        baseConfig: default
+  timelimiter:
+    # Interaction: Enforces a strict 5s limit on ALL gateway requests.
+    configs:
+      default:
+        timeoutDuration: 60s
+  ratelimiter:
+    # Interaction: Limits requests to prevent system overload.
+    instances:
+      default:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>in.cg.main</groupId>
+    <artifactId>smartsure-parent</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>smartsure-parent</name>
+
+    <!-- SonarQube Configuration -->
+    <!-- Run: mvn sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.login=YOUR_TOKEN -->
+    <properties>
+        <sonar.host.url>http://localhost:9000</sonar.host.url>
+        <!-- Points SonarQube to the JaCoCo coverage reports from each service -->
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${project.basedir}/target/site/jacoco/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <!-- Minimum quality gate: 84% code coverage -->
+        <sonar.coverage.exclusions>**/*Application.java,**/dto/**,**/entity/**,**/exception/**</sonar.coverage.exclusions>
+    </properties>
+
+    <modules>
+        <module>config-server</module>
+        <module>eureka-server</module>
+        <module>api-gateway</module>
+        <module>auth-service</module>
+        <module>policy-service</module>
+        <module>claim-service</module>
+        <module>admin-service</module>
+    </modules>
+
+    <build>
+        <plugins>
+            <!-- SonarQube Maven Plugin -->
+            <!-- Use this to scan all services at once from the root directory -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>3.11.0.3922</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

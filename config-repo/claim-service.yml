@@ -1,0 +1,41 @@
+# WHY: The Claim Service is the most complex logic-heavy service, handling documents and payouts.
+# 
+# WHAT: Configures DB, RabbitMQ, and Observability for claim processing.
+# 
+# HOW: Integrated with the Policy Service via OpenFeign to validate policy status
+# before allowing a claim to proceed.
+
+spring:
+  datasource:
+    # Interaction: Connects to 'smartsure_claim' database.
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/smartsure_claim?createDatabaseIfNotExist=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:Vignesh@2808}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  rabbitmq:
+    # Interaction: Publishes "Claim Submitted" messages to the exchange.
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      # Interaction: Allows registration for dynamic discovery.
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      # Interaction: Distributed tracing for bottleneck identification.
+      endpoint: ${ZIPKIN_SERVER_URL:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: "*"

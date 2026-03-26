@@ -1,0 +1,67 @@
+# WHY: The Admin Service requires configurations to manage system-wide operations
+# and adjudicate claims from other services.
+# 
+# WHAT: This file contains datasource, RabbitMQ, and Resilience4j (Circuit Breaker, 
+# Retry, Bulkhead) settings specific to administrative tasks.
+# 
+# HOW: It leverages Resilience4j to ensure that if the Claim Service is under load,
+# the Admin Service can still provide fallbacks rather than crashing.
+
+spring:
+  datasource:
+    # Interaction: Uses a dedicated legacy schema 'smartsure_admin' for reporting.
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/smartsure_admin?createDatabaseIfNotExist=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:Vignesh@2808}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  rabbitmq:
+    # Interaction: Listens for claim events or system notifications.
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_SERVER_URL:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      # Interaction: Service Discovery registration.
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+# WHY: Resilience4j prevents cascading failures in a microservices environment.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # WHAT: If 50% of 10 calls fail, the circuit opens for 5 seconds.
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+    instances:
+      claimService:
+        baseConfig: default
+  retry:
+    instances:
+      claimService:
+        # WHAT: Automatically retries failed claim operations 3 times with 2s interval.
+        maxAttempts: 3
+        waitDuration: 2s
+  bulkhead:
+    instances:
+      claimService:
+        # WHAT: Limits concurrent calls to the Claim Service to 10 to prevent resource exhaustion.
+        maxConcurrentCalls: 10
